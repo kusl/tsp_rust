@@ -1,5 +1,4 @@
 name: Test TSP Solver
-
 on: [push, pull_request]
 
 env:
@@ -20,7 +19,8 @@ jobs:
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
     
-    - name: Cache cargo registry
+    - name: Cache cargo registry (Unix)
+      if: runner.os != 'Windows'
       uses: actions/cache@v4
       with:
         path: |
@@ -29,6 +29,20 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Cache cargo registry (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/cache@v4
+      with:
+        path: |
+          %USERPROFILE%\.cargo\bin
+          %USERPROFILE%\.cargo\registry\index
+          %USERPROFILE%\.cargo\registry\cache
+          %USERPROFILE%\.cargo\git\db
+          target\
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-
@@ -51,10 +65,23 @@ jobs:
     - name: Verify binary exists
       shell: bash
       run: |
+        # Get the actual binary name from Cargo.toml
+        BINARY_NAME=$(grep -m1 '^name' Cargo.toml | sed 's/.*"\(.*\)".*/\1/' | tr '-' '_')
+        
         if [[ "${{ runner.os }}" == "Windows" ]]; then
-          test -f target/release/tsp_solver.exe && echo "✓ Binary found"
+          if test -f "target/release/${BINARY_NAME}.exe"; then
+            echo "✓ Binary found: ${BINARY_NAME}.exe"
+          else
+            echo "✗ Binary not found: ${BINARY_NAME}.exe"
+            exit 1
+          fi
         else
-          test -f target/release/tsp_solver && echo "✓ Binary found"
+          if test -f "target/release/${BINARY_NAME}"; then
+            echo "✓ Binary found: ${BINARY_NAME}"
+          else
+            echo "✗ Binary not found: ${BINARY_NAME}"
+            exit 1
+          fi
         fi
 
   clippy:
