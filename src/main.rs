@@ -227,34 +227,6 @@ fn permute_and_check(
     }
 }
 
-fn permute_and_check(
-    cities: &[City],
-    prefix: &mut Vec<usize>,
-    remaining: &mut Vec<usize>,
-    start_idx: usize,
-    best_distance: &mut f64,
-    best_path: &mut Vec<usize>,
-) {
-    if start_idx == remaining.len() {
-        // Complete path
-        let mut full_path = prefix.clone();
-        full_path.extend_from_slice(remaining);
-        
-        let distance = calculate_distance(cities, &full_path);
-        if distance < *best_distance {
-            *best_distance = distance;
-            *best_path = full_path;
-        }
-        return;
-    }
-
-    for i in start_idx..remaining.len() {
-        remaining.swap(start_idx, i);
-        permute_and_check(cities, prefix, remaining, start_idx + 1, best_distance, best_path);
-        remaining.swap(start_idx, i);
-    }
-}
-
 fn calculate_distance(cities: &[City], path: &[usize]) -> f64 {
     let mut total = 0.0;
     for i in 0..path.len() {
