@@ -122,7 +122,7 @@ impl TSPSolver {
         if n <= 1 {
             return;
         }
-        
+
         if n <= 4 {
             // For very small problems, just use single-threaded
             self.solve_all_permutations();
@@ -132,7 +132,7 @@ impl TSPSolver {
         // We'll fix city 0 at position 0, then distribute the work
         // by having each thread handle different starting cities at position 1
         let cities_to_permute: Vec<usize> = (1..n).collect();
-        
+
         // Shared state for best solution
         let best_distance = Arc::new(Mutex::new(f64::INFINITY));
         let best_path = Arc::new(Mutex::new(Vec::new()));
@@ -141,7 +141,7 @@ impl TSPSolver {
         // Create threads
         let mut handles = Vec::new();
         let chunk_size = cities_to_permute.len().div_ceil(num_threads);
-        
+
         for chunk in cities_to_permute.chunks(chunk_size) {
             let chunk = chunk.to_vec();
             let all_cities = cities_to_permute.clone();
@@ -157,14 +157,14 @@ impl TSPSolver {
                 for &start_city in &chunk {
                     // Create a path starting with 0 and this city
                     let mut path = vec![0, start_city];
-                    
+
                     // Add remaining cities
                     let mut remaining: Vec<usize> = all_cities
                         .iter()
                         .filter(|&&c| c != start_city)
                         .cloned()
                         .collect();
-                    
+
                     // Generate all permutations with this fixed start
                     permute_and_check(
                         &cities,
@@ -211,7 +211,7 @@ fn permute_and_check(
         // Complete path
         let mut full_path = prefix.clone();
         full_path.extend_from_slice(remaining);
-        
+
         let distance = calculate_distance(cities, &full_path);
         if distance < *best_distance {
             *best_distance = distance;
@@ -222,7 +222,14 @@ fn permute_and_check(
 
     for i in start_idx..remaining.len() {
         remaining.swap(start_idx, i);
-        permute_and_check(cities, prefix, remaining, start_idx + 1, best_distance, best_path);
+        permute_and_check(
+            cities,
+            prefix,
+            remaining,
+            start_idx + 1,
+            best_distance,
+            best_path,
+        );
         remaining.swap(start_idx, i);
     }
 }
@@ -240,7 +247,7 @@ fn calculate_distance(cities: &[City], path: &[usize]) -> f64 {
 fn generate_random_cities(n: usize, seed: u64) -> Vec<City> {
     let mut cities = Vec::new();
     let mut rng = SimpleRng::new(seed);
-    
+
     for i in 0..n {
         cities.push(City {
             id: i,
@@ -248,7 +255,7 @@ fn generate_random_cities(n: usize, seed: u64) -> Vec<City> {
             y: rng.next_f64() * 100.0,
         });
     }
-    
+
     cities
 }
 
@@ -259,16 +266,16 @@ struct SimpleRng {
 
 impl SimpleRng {
     fn new(seed: u64) -> Self {
-        SimpleRng { 
-            state: if seed == 0 { 12345 } else { seed }
+        SimpleRng {
+            state: if seed == 0 { 12345 } else { seed },
         }
     }
-    
+
     fn next(&mut self) -> u64 {
         self.state = self.state.wrapping_mul(1664525).wrapping_add(1013904223);
         self.state
     }
-    
+
     fn next_f64(&mut self) -> f64 {
         (self.next() as f64) / (u64::MAX as f64)
     }
@@ -284,12 +291,12 @@ fn print_usage() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     if args.len() < 2 {
         print_usage();
         process::exit(1);
     }
-    
+
     let num_cities = match args[1].parse::<usize>() {
         Ok(n) => n,
         Err(_) => {
@@ -298,12 +305,18 @@ fn main() {
             process::exit(1);
         }
     };
-    
+
     if num_cities > 10 {
-        eprintln!("Warning: {} cities will take a very long time with brute force!", num_cities);
-        eprintln!("Factorial complexity: {}! permutations to check", num_cities);
+        eprintln!(
+            "Warning: {} cities will take a very long time with brute force!",
+            num_cities
+        );
+        eprintln!(
+            "Factorial complexity: {}! permutations to check",
+            num_cities
+        );
     }
-    
+
     let seed = if args.len() >= 3 {
         args[2].parse::<u64>().unwrap_or(42)
     } else {
@@ -321,16 +334,16 @@ fn main() {
             .map(|n| n.get())
             .unwrap_or(4)
     };
-    
+
     println!("=== Traveling Salesman Problem Solver ===");
     println!("Cities: {}", num_cities);
     println!("Seed: {}", seed);
     println!("Available CPU threads: {}", num_threads);
     println!();
-    
+
     // Generate cities
     let cities = generate_random_cities(num_cities, seed);
-    
+
     // Print city positions
     println!("City Positions:");
     for city in &cities {
