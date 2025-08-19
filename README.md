@@ -39,11 +39,11 @@ Time taken: 55.957 seconds
 
 
 14 nodes 
-?
-
-
-
-
+=== Solution Found ===
+Best path: [0, 6, 2, 13, 5, 3, 1, 7, 9, 10, 12, 11, 8, 4]
+Route: 0 -> 6 -> 2 -> 13 -> 5 -> 3 -> 1 -> 7 -> 9 -> 10 -> 12 -> 11 -> 8 -> 4 -> 0
+Total distance: 424.12
+Time taken: 770.787 seconds
 
 
 

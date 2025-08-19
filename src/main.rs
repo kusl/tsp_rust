@@ -42,6 +42,7 @@ impl TSPSolver {
         total
     }
 
+    #[allow(dead_code)]
     fn permute(&mut self, path: &mut Vec<usize>, l: usize, r: usize) {
         if l == r {
             let distance = self.calculate_total_distance(path);
@@ -58,13 +59,15 @@ impl TSPSolver {
         }
     }
 
+    #[allow(dead_code)]
     fn solve(&mut self) {
         let n = self.cities.len();
         if n <= 1 {
             return;
         }
        
-        let mut path: Vec<usize> = (0..n).collect();
+        let path: Vec<usize> = (0..n).collect();
+
        
         // Keep first city fixed to avoid duplicate rotations
         if n > 2 {
