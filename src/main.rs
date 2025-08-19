@@ -225,6 +225,7 @@ fn permute_and_check(
         permute_and_check(cities, prefix, remaining, start_idx + 1, best_distance, best_path);
         remaining.swap(start_idx, i);
     }
+}
 
 fn permute_and_check(
     cities: &[City],
