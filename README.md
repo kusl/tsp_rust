@@ -9,7 +9,7 @@ Traveling Salesman Problem in Rust
 
 
 Demonstration of the problem: 
-
+```
 10 nodes
 === Solution Found ===
 Best path: [0, 4, 8, 9, 7, 1, 3, 5, 2, 6]
@@ -47,7 +47,7 @@ Time taken: 55.957 seconds
 
 
 
-
+```
 
 
 
