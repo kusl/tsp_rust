@@ -2,21 +2,77 @@ name: Test TSP Solver
 
 on: [push, pull_request]
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Test - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
     steps:
-    - uses: actions/checkout@v5
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
-   
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
     - name: Build
       run: cargo build --release
-     
+      
     - name: Run tests
-      run: cargo test
-     
+      run: cargo test --release
+      
     - name: Test with 5 cities
-      run: cargo run --release 5 42
-     
+      run: cargo run --release -- 5 42
+      
     - name: Test with 7 cities
-      run: cargo run --release 7 123
+      run: cargo run --release -- 7 123
+      
+    - name: Test with 10 cities (with threads)
+      run: cargo run --release -- 10 42 4
+      
+    - name: Verify binary exists
+      shell: bash
+      run: |
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          test -f target/release/tsp_solver.exe && echo "✓ Binary found"
+        else
+          test -f target/release/tsp_solver && echo "✓ Binary found"
+        fi
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
+    - run: cargo clippy -- -D warnings
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt
+    - run: cargo fmt --all -- --check

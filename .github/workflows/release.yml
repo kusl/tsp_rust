@@ -15,12 +15,16 @@ env:
   CARGO_TERM_COLOR: always
   BINARY_NAME: tsp_solver
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
       release_tag: ${{ steps.get_tag.outputs.tag }}
     steps:
       - name: Get tag name
@@ -32,34 +36,34 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ steps.get_tag.outputs.tag }}
-          release_name: TSP Solver ${{ steps.get_tag.outputs.tag }}
+          tag: ${{ steps.get_tag.outputs.tag }}
+          name: TSP Solver ${{ steps.get_tag.outputs.tag }}
           body: |
             # TSP Solver Release ${{ steps.get_tag.outputs.tag }}
-           
+            
             **Commit:** ${{ github.sha }}
             **Branch:** ${{ github.ref_name }}
             **Commit Message:** ${{ github.event.head_commit.message }}
-           
+            
             A zero-dependency Traveling Salesman Problem solver in Rust with both single-threaded and multi-threaded implementations.
-           
+            
             ## Available Binaries
             - Windows (x64): `tsp_solver-windows-x64.exe`
             - macOS (x64 Intel): `tsp_solver-macos-x64`
             - macOS (ARM64 Apple Silicon): `tsp_solver-macos-arm64`
             - Linux (x64): `tsp_solver-linux-x64`
             - Linux (ARM64): `tsp_solver-linux-arm64`
-           
+            
             ## Usage
             ```bash
             ./tsp_solver <num_cities> [seed] [threads]
             ```
           draft: false
-          prerelease: false
+          prerelease: true
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-upload:
     name: Build - ${{ matrix.name }}
@@ -76,28 +80,28 @@ jobs:
             target: x86_64-pc-windows-msvc
             artifact_name: tsp_solver.exe
             asset_name: tsp_solver-windows-x64.exe
-           
+            
           # macOS x64 (Intel)
           - os: macos-latest
             name: macOS x64
             target: x86_64-apple-darwin
             artifact_name: tsp_solver
             asset_name: tsp_solver-macos-x64
-           
+            
           # macOS ARM64 (Apple Silicon)
           - os: macos-latest
             name: macOS ARM64
             target: aarch64-apple-darwin
             artifact_name: tsp_solver
             asset_name: tsp_solver-macos-arm64
-           
+            
           # Linux x64
           - os: ubuntu-latest
             name: Linux x64
             target: x86_64-unknown-linux-gnu
             artifact_name: tsp_solver
             asset_name: tsp_solver-linux-x64
-           
+            
           # Linux ARM64
           - os: ubuntu-latest
             name: Linux ARM64
@@ -108,19 +112,19 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
 
       - name: Install Cross (for Linux ARM64)
         if: matrix.use_cross == true
         run: |
-          cargo install cross --git https://github.com/cross-rs/cross
+          # Use prebuilt binary instead of building from source
+          curl -L https://github.com/cross-rs/cross/releases/latest/download/cross-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv cross /usr/local/bin/
 
       - name: Build (Standard)
         if: matrix.use_cross != true
@@ -140,21 +144,25 @@ jobs:
           else
             cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} ${{ matrix.artifact_name }}
           fi
-         
+          
           # Make binary executable on Unix systems
           if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
             chmod +x ${{ matrix.artifact_name }}
           fi
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./${{ matrix.artifact_name }}
-          asset_name: ${{ matrix.asset_name }}
-          asset_content_type: application/octet-stream
+          tag: ${{ needs.create-release.outputs.release_tag }}
+          artifacts: ${{ matrix.artifact_name }}
+          artifactContentType: application/octet-stream
+          allowUpdates: true
+          updateOnlyUnreleased: false
+          replacesArtifacts: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
 
       - name: Upload Artifact (for debugging)
         uses: actions/upload-artifact@v4
@@ -174,39 +182,41 @@ jobs:
           - os: windows-latest
             name: Windows x64
             asset_name: tsp_solver-windows-x64.exe
-           
+            binary_name: tsp_solver.exe
+            
           - os: macos-latest
             name: macOS x64
             asset_name: tsp_solver-macos-x64
-           
+            binary_name: tsp_solver
+            
           - os: ubuntu-latest
             name: Linux x64
             asset_name: tsp_solver-linux-x64
+            binary_name: tsp_solver
 
     steps:
       - name: Download artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
 
       - name: Test binary
         shell: bash
         run: |
+          # List files for debugging
+          ls -la
+          
           # Make executable on Unix
           if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
-            chmod +x ${{ matrix.asset_name }}
+            chmod +x ${{ matrix.binary_name }}
           fi
-         
+          
           # Test with 5 cities
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./${{ matrix.asset_name }} 5 42 2
-          else
-            ./${{ matrix.asset_name }} 5 42 2
-          fi
+          ./${{ matrix.binary_name }} 5 42 2
 
   summary:
     name: Build Summary
-    needs: [build-and-upload, test-builds]
+    needs: [create-release, build-and-upload, test-builds]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -216,12 +226,17 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Release Tag: ${{ needs.create-release.outputs.release_tag }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows x64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS x64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS ARM64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux x64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux ARM64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Build Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Note: This shows overall job status, not individual matrix results
+          echo "| All Platforms | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Release created successfully!" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.build-and-upload.result }}" == "success" ]]; then
+            echo "✅ All builds completed successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some builds may have failed, but artifacts for successful builds are available." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the release page for available binaries: https://github.com/${{ github.repository }}/releases/tag/${{ needs.create-release.outputs.release_tag }}" >> $GITHUB_STEP_SUMMARY
