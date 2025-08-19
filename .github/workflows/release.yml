@@ -1,0 +1,227 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: tsp_solver
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_tag: ${{ steps.get_tag.outputs.tag }}
+    steps:
+      - name: Get tag name
+        id: get_tag
+        run: |
+          # Generate tag based on date and commit SHA
+          TAG="v$(date +'%Y%m%d')-${GITHUB_SHA::7}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          release_name: TSP Solver ${{ steps.get_tag.outputs.tag }}
+          body: |
+            # TSP Solver Release ${{ steps.get_tag.outputs.tag }}
+           
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit Message:** ${{ github.event.head_commit.message }}
+           
+            A zero-dependency Traveling Salesman Problem solver in Rust with both single-threaded and multi-threaded implementations.
+           
+            ## Available Binaries
+            - Windows (x64): `tsp_solver-windows-x64.exe`
+            - macOS (x64 Intel): `tsp_solver-macos-x64`
+            - macOS (ARM64 Apple Silicon): `tsp_solver-macos-arm64`
+            - Linux (x64): `tsp_solver-linux-x64`
+            - Linux (ARM64): `tsp_solver-linux-arm64`
+           
+            ## Usage
+            ```bash
+            ./tsp_solver <num_cities> [seed] [threads]
+            ```
+          draft: false
+          prerelease: true
+
+  build-and-upload:
+    name: Build - ${{ matrix.name }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows x64
+          - os: windows-latest
+            name: Windows x64
+            target: x86_64-pc-windows-msvc
+            artifact_name: tsp_solver.exe
+            asset_name: tsp_solver-windows-x64.exe
+           
+          # macOS x64 (Intel)
+          - os: macos-latest
+            name: macOS x64
+            target: x86_64-apple-darwin
+            artifact_name: tsp_solver
+            asset_name: tsp_solver-macos-x64
+           
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest
+            name: macOS ARM64
+            target: aarch64-apple-darwin
+            artifact_name: tsp_solver
+            asset_name: tsp_solver-macos-arm64
+           
+          # Linux x64
+          - os: ubuntu-latest
+            name: Linux x64
+            target: x86_64-unknown-linux-gnu
+            artifact_name: tsp_solver
+            asset_name: tsp_solver-linux-x64
+           
+          # Linux ARM64
+          - os: ubuntu-latest
+            name: Linux ARM64
+            target: aarch64-unknown-linux-gnu
+            artifact_name: tsp_solver
+            asset_name: tsp_solver-linux-arm64
+            use_cross: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Install Cross (for Linux ARM64)
+        if: matrix.use_cross == true
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build (Standard)
+        if: matrix.use_cross != true
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (Cross)
+        if: matrix.use_cross == true
+        run: |
+          cross build --release --target ${{ matrix.target }}
+
+      - name: Prepare binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}.exe ${{ matrix.artifact_name }}
+          else
+            cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} ${{ matrix.artifact_name }}
+          fi
+         
+          # Make binary executable on Unix systems
+          if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
+            chmod +x ${{ matrix.artifact_name }}
+          fi
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
+
+      - name: Upload Artifact (for debugging)
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.artifact_name }}
+
+  test-builds:
+    name: Test Build - ${{ matrix.name }}
+    needs: build-and-upload
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows x64
+            asset_name: tsp_solver-windows-x64.exe
+           
+          - os: macos-latest
+            name: macOS x64
+            asset_name: tsp_solver-macos-x64
+           
+          - os: ubuntu-latest
+            name: Linux x64
+            asset_name: tsp_solver-linux-x64
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.asset_name }}
+
+      - name: Test binary
+        shell: bash
+        run: |
+          # Make executable on Unix
+          if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
+            chmod +x ${{ matrix.asset_name }}
+          fi
+         
+          # Test with 5 cities
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ./${{ matrix.asset_name }} 5 42 2
+          else
+            ./${{ matrix.asset_name }} 5 42 2
+          fi
+
+  summary:
+    name: Build Summary
+    needs: [build-and-upload, test-builds]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "# Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Release Tag: ${{ needs.create-release.outputs.release_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows x64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS x64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS ARM64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux x64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux ARM64 | ${{ needs.build-and-upload.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Release created successfully!" >> $GITHUB_STEP_SUMMARY
