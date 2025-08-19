@@ -281,4 +281,3 @@ mod tests {
         assert_eq!(solver.best_distance, 2.0);
     }
 }
-
