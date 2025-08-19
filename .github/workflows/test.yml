@@ -51,7 +51,7 @@ jobs:
     - name: Verify binary exists
       shell: bash
       run: |
-        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
           test -f target/release/tsp_solver.exe && echo "✓ Binary found"
         else
           test -f target/release/tsp_solver && echo "✓ Binary found"
