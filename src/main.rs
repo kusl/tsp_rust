@@ -135,7 +135,7 @@ impl TSPSolver {
         for i in 1..n {
             for j in 1..n {
                 if i != j {
-                    let mut prefix = vec![0, i];
+                    let prefix = vec![0, i];
                     let mut remaining: Vec<usize> = (1..n)
                         .filter(|&x| x != i && x != j)
                         .collect();
