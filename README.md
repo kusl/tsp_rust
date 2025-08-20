@@ -4,18 +4,18 @@ A zero-dependency TSP solver with three distinct implementations showcasing algo
 
 ## Features
 
-- **Three Implementations**: Single-threaded, multi-threaded, and optimized with advanced algorithms
+- **Three Implementations**: Single-threaded, multithreaded, and optimized with advanced algorithms
 - **Exact Solutions**: All implementations find the mathematically optimal solution (not heuristic)
 - **Performance Benchmarking**: Randomized execution order and detailed performance comparisons
 - **Scalable**: Handles 1-20+ cities with different algorithmic approaches based on problem size
 
 ## Algorithms
 
-| Implementation | Approach | Best For |
-|----------------|----------|----------|
-| **Single-threaded** | Brute force permutation | Baseline comparison, 1-10 cities |
-| **Multi-threaded** | Parallel brute force | CPU-bound improvement, 4-12 cities |
-| **Optimized** | Distance matrix + Branch & Bound + Bitmask DP | Performance critical, 1-20+ cities |
+| Implementation      | Approach                                      | Best For                           |
+|---------------------|-----------------------------------------------|------------------------------------|
+| **Single-threaded** | Brute force permutation                       | Baseline comparison, 1-10 cities   |
+| **Multi-threaded**  | Parallel brute force                          | CPU-bound improvement, 4-12 cities |
+| **Optimized**       | Distance matrix + Branch & Bound + Bitmask DP | Performance critical, 1-20+ cities |
 
 ## Performance
 
@@ -91,10 +91,10 @@ cargo test
 
 ## Complexity Analysis
 
-| Cities | Brute Force | Optimized (Bitmask DP) | Practical Runtime |
-|--------|-------------|------------------------|-------------------|
-| 10 | 10! ≈ 3.6M | 10²×2¹⁰ ≈ 102K | milliseconds |
-| 15 | 15! ≈ 1.3T | 15²×2¹⁵ ≈ 7.4M | seconds |
-| 20 | 20! ≈ 2.4×10¹⁸ | 20²×2²⁰ ≈ 419M | minutes |
+| Cities | Brute Force    | Optimized (Bitmask DP) | Practical Runtime |
+|--------|----------------|------------------------|-------------------|
+| 10     | 10! ≈ 3.6M     | 10²×2¹⁰ ≈ 102K         | milliseconds      |
+| 15     | 15! ≈ 1.3T     | 15²×2¹⁵ ≈ 7.4M         | seconds           |
+| 20     | 20! ≈ 2.4×10¹⁸ | 20²×2²⁰ ≈ 419M         | minutes           |
 
 **⚠️ AI Disclosure**: This project includes code generated with assistance from Large Language Models (LLMs). 
