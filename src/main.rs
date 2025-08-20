@@ -231,6 +231,7 @@ impl OptimizedTSPSolver {
         }
     }
 
+    #[allow(dead_code)]
     fn calculate_total_distance(&self, path: &[usize]) -> f64 {
         let mut total = 0.0;
         for i in 0..path.len() {
@@ -581,7 +582,7 @@ fn main() {
                 results[0] = ("Single-threaded".to_string(), solver_single.best_distance, elapsed_single, solver_single.best_path);
             },
             1 => {
-                // Multi-threaded implementation (only if we have enough cities)
+                // Multithreaded implementation (only if we have enough cities)
                 if num_cities >= 4 {
                     println!("=== Multi-threaded Solution ({} threads) ===", num_threads);
                     let mut solver_parallel = TSPSolver::new(cities.clone());
