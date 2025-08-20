@@ -1,8 +1,8 @@
+use std::collections::VecDeque;
 use std::env;
 use std::process;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 struct City {
@@ -215,7 +215,7 @@ impl OptimizedTSPSolver {
 
         // Pre-calculate all distances (optimization 1: distance matrix caching)
         for i in 0..n {
-            for j in i+1..n {
+            for j in i + 1..n {
                 let dist = cities[i].distance_to(&cities[j]);
                 distance_matrix[i][j] = dist;
                 distance_matrix[j][i] = dist;
@@ -237,7 +237,7 @@ impl OptimizedTSPSolver {
         for i in 0..path.len() {
             let from = path[i];
             let to = path[(i + 1) % path.len()];
-            total += self.distance_matrix[from][to];  // O(1) lookup instead of calculation
+            total += self.distance_matrix[from][to]; // O(1) lookup instead of calculation
         }
         total
     }
@@ -264,7 +264,7 @@ impl OptimizedTSPSolver {
                 let new_dist = if l == 0 {
                     0.0
                 } else {
-                    current_dist + self.distance_matrix[path[l-1]][path[l]]
+                    current_dist + self.distance_matrix[path[l - 1]][path[l]]
                 };
 
                 self.permute_with_bound(path, l + 1, r, new_dist);
@@ -311,10 +311,14 @@ impl OptimizedTSPSolver {
 
         for mask in 1..(1 << n) {
             for u in 0..n {
-                if (mask & (1 << u)) == 0 { continue; }
+                if (mask & (1 << u)) == 0 {
+                    continue;
+                }
 
                 for v in 0..n {
-                    if u == v || (mask & (1 << v)) != 0 { continue; }
+                    if u == v || (mask & (1 << v)) != 0 {
+                        continue;
+                    }
 
                     let new_mask = mask | (1 << v);
                     let new_dist = dp[u][mask] + self.distance_matrix[u][v];
@@ -344,7 +348,12 @@ impl OptimizedTSPSolver {
         self.reconstruct_path(parent, final_mask, last_city);
     }
 
-    fn reconstruct_path(&mut self, parent: Vec<Vec<Option<usize>>>, mut mask: usize, mut current: usize) {
+    fn reconstruct_path(
+        &mut self,
+        parent: Vec<Vec<Option<usize>>>,
+        mut mask: usize,
+        mut current: usize,
+    ) {
         let mut path = Vec::new();
 
         while let Some(prev) = parent[current][mask] {
@@ -553,7 +562,15 @@ fn main() {
         order.swap(i, j);
     }
 
-    let mut results = vec![(String::new(), f64::INFINITY, std::time::Duration::ZERO, Vec::new()); 3];
+    let mut results = vec![
+        (
+            String::new(),
+            f64::INFINITY,
+            std::time::Duration::ZERO,
+            Vec::new()
+        );
+        3
+    ];
 
     for &implementation in &order {
         match implementation {
@@ -579,8 +596,13 @@ fn main() {
                 println!("Time taken: {:.3} seconds", elapsed_single.as_secs_f64());
                 println!();
 
-                results[0] = ("Single-threaded".to_string(), solver_single.best_distance, elapsed_single, solver_single.best_path);
-            },
+                results[0] = (
+                    "Single-threaded".to_string(),
+                    solver_single.best_distance,
+                    elapsed_single,
+                    solver_single.best_path,
+                );
+            }
             1 => {
                 // Multithreaded implementation (only if we have enough cities)
                 if num_cities >= 4 {
@@ -604,16 +626,28 @@ fn main() {
                     println!("Time taken: {:.3} seconds", elapsed_parallel.as_secs_f64());
                     println!();
 
-                    results[1] = ("Multi-threaded".to_string(), solver_parallel.best_distance, elapsed_parallel, solver_parallel.best_path);
+                    results[1] = (
+                        "Multi-threaded".to_string(),
+                        solver_parallel.best_distance,
+                        elapsed_parallel,
+                        solver_parallel.best_path,
+                    );
                 } else {
                     println!("=== Multi-threaded Solution (Skipped for < 4 cities) ===");
                     println!();
-                    results[1] = ("Multi-threaded (Skipped)".to_string(), f64::INFINITY, std::time::Duration::ZERO, Vec::new());
+                    results[1] = (
+                        "Multi-threaded (Skipped)".to_string(),
+                        f64::INFINITY,
+                        std::time::Duration::ZERO,
+                        Vec::new(),
+                    );
                 }
-            },
+            }
             2 => {
                 // Optimized implementation
-                println!("=== Optimized Solution (Distance Matrix + Branch & Bound + Bitmask DP) ===");
+                println!(
+                    "=== Optimized Solution (Distance Matrix + Branch & Bound + Bitmask DP) ==="
+                );
                 let mut solver_optimized = OptimizedTSPSolver::new(cities.clone());
 
                 let start_time = std::time::Instant::now();
@@ -633,24 +667,36 @@ fn main() {
                 println!("Time taken: {:.3} seconds", elapsed_optimized.as_secs_f64());
                 println!();
 
-                results[2] = ("Optimized".to_string(), solver_optimized.best_distance, elapsed_optimized, solver_optimized.best_path);
-            },
+                results[2] = (
+                    "Optimized".to_string(),
+                    solver_optimized.best_distance,
+                    elapsed_optimized,
+                    solver_optimized.best_path,
+                );
+            }
             _ => unreachable!(),
         }
     }
 
     // Summary comparison
     println!("=== Performance Summary ===");
-    println!("Implementation order: {:?}", order.iter().map(|&i| match i {
-        0 => "Single",
-        1 => "Multi",
-        2 => "Optimized",
-        _ => "Unknown"
-    }).collect::<Vec<_>>());
+    println!(
+        "Implementation order: {:?}",
+        order
+            .iter()
+            .map(|&i| match i {
+                0 => "Single",
+                1 => "Multi",
+                2 => "Optimized",
+                _ => "Unknown",
+            })
+            .collect::<Vec<_>>()
+    );
     println!();
 
     // Find best distance across all implementations
-    let best_distance = results.iter()
+    let best_distance = results
+        .iter()
         .filter(|(_, dist, _, _)| *dist != f64::INFINITY)
         .map(|(_, dist, _, _)| *dist)
         .fold(f64::INFINITY, f64::min);
@@ -672,24 +718,37 @@ fn main() {
     println!("Performance Ranking:");
     for (rank, (name, distance, time, _)) in perf_results.iter().enumerate() {
         if *distance != f64::INFINITY {
-            let speedup = if rank == 0 { 1.0 } else {
+            let speedup = if rank == 0 {
+                1.0
+            } else {
                 time.as_secs_f64() / perf_results[0].2.as_secs_f64()
             };
-            println!("  {}. {}: {:.3}s (distance: {:.2}, {}x slower)",
-                     rank + 1, name, time.as_secs_f64(), distance,
-                     if rank == 0 { "baseline".to_string() } else { format!("{:.2}", speedup) });
+            println!(
+                "  {}. {}: {:.3}s (distance: {:.2}, {}x slower)",
+                rank + 1,
+                name,
+                time.as_secs_f64(),
+                distance,
+                if rank == 0 {
+                    "baseline".to_string()
+                } else {
+                    format!("{:.2}", speedup)
+                }
+            );
         } else {
             println!("  {}. {}: skipped", rank + 1, name);
         }
     }
 
     // Verify all implementations found the same optimal solution
-    let valid_results: Vec<_> = results.iter()
+    let valid_results: Vec<_> = results
+        .iter()
         .filter(|(_, dist, _, _)| *dist != f64::INFINITY)
         .collect();
 
     if valid_results.len() > 1 {
-        let all_same = valid_results.iter()
+        let all_same = valid_results
+            .iter()
             .all(|(_, dist, _, _)| (dist - best_distance).abs() < 0.001);
 
         if all_same {
