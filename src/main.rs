@@ -91,7 +91,7 @@ impl TSPSolver {
 
         let mut path: Vec<usize> = (1..n).collect();
 
-        // Generate all permutations of cities 1..n (keeping city 0 fixed)
+        // Generate all permutations of cities 1…n (keeping city 0 fixed)
         self.check_all_permutations(&mut path, 0);
 
         // Add city 0 at the beginning
