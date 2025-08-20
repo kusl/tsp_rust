@@ -61,7 +61,7 @@ jobs:
             ./tsp_solver <num_cities> [seed] [threads]
             ```
           draft: false
-          prerelease: true
+          prerelease: false
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
