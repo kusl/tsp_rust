@@ -538,7 +538,10 @@ fn main() {
     let should_run_all = run_all || num_cities < 15;
 
     if num_cities >= 15 && !run_all {
-        println!("Note: For {} cities, only running optimized solution.", num_cities);
+        println!(
+            "Note: For {} cities, only running optimized solution.",
+            num_cities
+        );
         println!("      Use --all flag to run all implementations (warning: may take very long!)");
         println!();
     }
