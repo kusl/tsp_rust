@@ -483,11 +483,15 @@ impl SimpleRng {
 }
 
 fn print_usage() {
-    eprintln!("Usage: tsp <num_cities> [seed] [threads]");
-    eprintln!("  num_cities: Number of cities (1-15 recommended for brute force)");
+    eprintln!("Usage: tsp <num_cities> [seed] [threads] [--all]");
+    eprintln!("  num_cities: Number of cities");
     eprintln!("  seed: Optional random seed for city generation (default: 42)");
     eprintln!("  threads: Optional number of threads for parallel execution (default: number of CPU cores)");
+    eprintln!("  --all: Run all implementations (by default, only optimized solution runs for 15+ cities)");
     eprintln!("\nExample: tsp 5 123 4");
+    eprintln!("Example: tsp 16 42 --all");
+    eprintln!("\nNote: For 15+ cities, only the optimized solution runs by default.");
+    eprintln!("      Use --all flag to run all implementations (may take very long!)");
 }
 
 fn main() {
@@ -507,24 +511,18 @@ fn main() {
         }
     };
 
-    if num_cities > 15 {
-        eprintln!(
-            "Warning: {} cities will take a very long time with brute force!",
-            num_cities
-        );
-        eprintln!(
-            "Factorial complexity: {}! permutations to check",
-            num_cities
-        );
-    }
+    // Check for --all flag
+    let run_all = args.iter().any(|arg| arg == "--all");
 
-    let seed = if args.len() >= 3 {
+    // Parse seed (skip --all if it appears in position 2)
+    let seed = if args.len() >= 3 && args[2] != "--all" {
         args[2].parse::<u64>().unwrap_or(42)
     } else {
         42
     };
 
-    let num_threads = if args.len() >= 4 {
+    // Parse threads (skip --all if it appears in position 3)
+    let num_threads = if args.len() >= 4 && args[3] != "--all" {
         args[3].parse::<usize>().unwrap_or_else(|_| {
             thread::available_parallelism()
                 .map(|n| n.get())
@@ -536,10 +534,37 @@ fn main() {
             .unwrap_or(4)
     };
 
+    // Determine whether to run all implementations
+    let should_run_all = run_all || num_cities < 15;
+
+    if num_cities >= 15 && !run_all {
+        println!("Note: For {} cities, only running optimized solution.", num_cities);
+        println!("      Use --all flag to run all implementations (warning: may take very long!)");
+        println!();
+    }
+
+    if num_cities > 15 && run_all {
+        eprintln!(
+            "Warning: {} cities with all implementations will take a very long time!",
+            num_cities
+        );
+        eprintln!(
+            "Factorial complexity: {}! permutations for brute force",
+            num_cities
+        );
+        eprintln!("Consider running without --all flag for optimized solution only.");
+        println!();
+    }
+
     println!("=== Traveling Salesman Problem Solver ===");
     println!("Cities: {}", num_cities);
     println!("Seed: {}", seed);
-    println!("Available CPU threads: {}", num_threads);
+    if should_run_all {
+        println!("Mode: All implementations");
+        println!("Available CPU threads: {}", num_threads);
+    } else {
+        println!("Mode: Optimized solution only");
+    }
     println!();
 
     // Generate cities
@@ -552,6 +577,48 @@ fn main() {
     }
     println!();
 
+    if should_run_all {
+        // Run all implementations
+        run_all_implementations(cities, seed, num_threads, num_cities);
+    } else {
+        // Run only optimized solution for 15+ cities
+        println!("=== Optimized Solution (Distance Matrix + Branch & Bound + Bitmask DP) ===");
+        let mut solver_optimized = OptimizedTSPSolver::new(cities.clone());
+
+        let start_time = std::time::Instant::now();
+        solver_optimized.solve_optimized();
+        let elapsed_optimized = start_time.elapsed();
+
+        println!("Best path: {:?}", solver_optimized.best_path);
+        print!("Route: ");
+        for (i, &city_id) in solver_optimized.best_path.iter().enumerate() {
+            if i > 0 {
+                print!(" -> ");
+            }
+            print!("{}", city_id);
+        }
+        println!(" -> {}", solver_optimized.best_path[0]);
+        println!("Total distance: {:.2}", solver_optimized.best_distance);
+        println!("Time taken: {:.3} seconds", elapsed_optimized.as_secs_f64());
+
+        // Verify solution by printing step-by-step distances for small problems
+        if num_cities <= 8 {
+            println!();
+            println!("Distance breakdown:");
+            let path = &solver_optimized.best_path;
+            for i in 0..path.len() {
+                let from_idx = path[i];
+                let to_idx = path[(i + 1) % path.len()];
+                let from = &cities[from_idx];
+                let to = &cities[to_idx];
+                let dist = from.distance_to(to);
+                println!("  {} -> {}: {:.2}", from_idx, to_idx, dist);
+            }
+        }
+    }
+}
+
+fn run_all_implementations(cities: Vec<City>, seed: u64, num_threads: usize, num_cities: usize) {
     // Create a random order for running the three implementations
     let mut rng = SimpleRng::new(seed + 1000); // Different seed for randomization
     let mut order = vec![0, 1, 2]; // 0: single, 1: parallel, 2: optimized
